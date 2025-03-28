@@ -1,0 +1,163 @@
+# mode: daemonset
+
+# image:
+#   repository: "otel/opentelemetry-collector-contrib"
+#   tag: "0.91.0"
+
+# command:
+#   name: "otelcol-contrib"
+
+# ports:
+#   metrics:
+#     enabled: true
+#     containerPort: 8888
+#     servicePort: 8888
+#     protocol: TCP
+
+# service:
+#   enabled: true
+#   type: ClusterIP
+
+# config:
+#   receivers:
+#     otlp:
+#       protocols:
+#         grpc:
+#           endpoint: "0.0.0.0:4317"
+#         http:
+#           endpoint: "0.0.0.0:3030"
+      
+#   processors:
+#     - attributes:
+#         actions:
+#           - key: level
+#             from: attributes.severity_text
+#             action: insert
+    
+#   exporters:
+#     otlp:
+#       endpoint: tempo.monitoring.svc.cluster.local:4317
+#       tls:
+#         insecure: true
+#     prometheus:
+#       endpoint: "0.0.0.0:8889"
+#     otlphttp:
+#       endpoint: http://loki-gateway.monitoring.svc.cluster.local:8080/otlp
+#     # loki:
+#       # endpoint: /loki/api/v1/push
+
+#   service:
+#     pipelines:
+#       logs:
+#         receivers: [otlp]
+#         processors: [attributes]
+#         exporters: [otlphttp]
+#       traces:
+#         receivers: [otlp]
+#         exporters: [otlp]
+#       metrics:
+#         receivers: [otlp]
+#         exporters: [prometheus]
+
+# resources:
+#   limits:
+#     cpu: "500m"
+#     memory: "512Mi"
+#   requests:
+#     cpu: "200m"
+#     memory: "256Mi"
+
+
+
+mode: daemonset
+
+image:
+  repository: "otel/opentelemetry-collector-contrib"
+  tag: "0.91.0"
+
+command:
+  name: "otelcol-contrib"
+
+ports:
+  metrics:
+    enabled: true
+    containerPort: 8888
+    servicePort: 8888
+    protocol: TCP
+
+service:
+  enabled: true
+  type: ClusterIP
+
+serviceAccount:
+  create: false
+  name: ${SERVICE_ACCOUNT_NAME}
+
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:4317"
+
+    prometheus:
+      config:
+        scrape_configs:
+          - job_name: "springboot"
+            static_configs:
+              - targets: ["fiap-hackathon-otel-test-api-service.otel-test.svc.cluster.local:8080"]
+    
+    hostmetrics:
+      collection_interval: 60s
+      scrapers:
+        cpu: {}
+        memory: {}
+        disk: {}
+        filesystem: {}
+
+  processors:
+    k8sattributes: {}
+    batch:
+      timeout: 5s
+      send_batch_size: 1000
+    attributes:
+      actions:
+        - key: loki.resource.labels
+          action: insert
+          value: service.name, k8s.namespace.name
+        - key: loki.attribute.labels
+          action: insert
+          value: http.method, http.status_code
+
+  exporters:
+    logging:
+
+    otlphttp/loki:
+      endpoint: http://loki-gateway.monitoring.svc.cluster.local:3100/otlp
+      tls:
+        insecure: true
+
+    otlp/tempo:
+      endpoint: tempo.monitoring.svc.cluster.local:4317
+      tls:
+        insecure: true
+
+    prometheusremotewrite/loki-metrics:
+      endpoint: http://prometheus-server.monitoring.svc.cluster.local:9090/api/v1/write
+
+  service:
+    pipelines:
+      logs:
+        receivers: [otlp]
+        processors: [k8sattributes, batch]
+        exporters: [otlphttp/loki]
+
+      traces:
+        receivers: [otlp]
+        processors: [batch]
+        exporters: [otlp/tempo]
+
+      metrics:
+        receivers: [hostmetrics, otlp]
+        processors: [batch]
+        exporters: [prometheusremotewrite/loki-metrics]

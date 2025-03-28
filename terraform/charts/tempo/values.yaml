@@ -1,0 +1,16 @@
+tempo:
+  storage:
+    trace:
+      backend: s3
+      s3:
+        bucket: ${S3_BUCKET_TEMPO}
+        endpoint: s3.${AWS_REGION}.amazonaws.com
+        region: ${AWS_REGION}
+        insecure: false
+
+  metricsGenerator:
+    enabled: true
+
+  extraEnvFrom:
+    - secretRef:
+        name: aws-credentials

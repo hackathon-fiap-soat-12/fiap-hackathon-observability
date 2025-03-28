@@ -1,0 +1,46 @@
+alloy:
+  config: |
+    prometheus.scrape "springboot_scrape" {
+      targets = ["fiap-hackathon-otel-test-api-service.otel-test.svc.cluster.local:8080/otel_test/actuator/prometheus"]
+      forward_to = [prometheus.remote_write.default.receiver]
+    }
+
+    prometheus.remote_write "default" {
+      endpoint {
+        url = "http://prometheus-server.monitoring.svc.cluster.local:4318/api/v1/write"
+      }
+    }
+
+    loki.source.podlogs "springboot_logs" {
+      namespace = "otel-test"
+      selector {
+        matchLabels = {
+          app = "fiap-hackathon-otel-test-api"
+        }
+      }
+      forward_to = [loki.write.loki.receiver]
+    }
+
+    loki.write "loki" {
+      endpoint = "http://loki-gateway.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+    }
+
+    otelcol.receiver.otlp "default" {
+      grpc { port = 4317 }
+      http { port = 4318 }
+      output { traces = [otelcol.exporter.tempo.default.input] }
+    }
+
+    otelcol.exporter.tempo "default" {
+      endpoint = "http://tempo.monitoring.svc.cluster.local:4318/v1/traces"
+    }
+
+  extraPorts:
+    - name: "trace-grpc"
+      port: 4317
+      targetPort: 4317
+      protocol: "TCP"
+    - name: "trace-http"
+      port: 4318
+      targetPort: 4318
+      protocol: "TCP"
