@@ -1,0 +1,22 @@
+resource "helm_release" "tempo" {
+  name       = "tempo"
+  chart      = "tempo"
+  repository = "https://grafana.github.io/helm-charts"
+  version    = "1.6.1"
+  namespace  = kubernetes_namespace.monitoring_namespaces.metadata[0].name
+
+  values = [
+    templatefile("${path.module}/charts/tempo/values.yaml", {
+      AWS_REGION      = var.aws_region,
+      S3_BUCKET_TEMPO = aws_s3_bucket.tempo.id
+    })
+  ]
+
+  timeout = 180
+
+  depends_on = [
+    kubernetes_namespace.monitoring_namespaces,
+    kubernetes_secret.aws_credentials,
+    aws_s3_bucket.tempo
+  ]
+}
