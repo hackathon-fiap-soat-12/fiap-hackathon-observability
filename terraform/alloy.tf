@@ -2,8 +2,8 @@ resource "helm_release" "alloy" {
   name       = "alloy"
   chart      = "alloy"
   repository = "https://grafana.github.io/helm-charts"
-  namespace  = kubernetes_namespace.monitoring_namespaces.metadata[0].name
   version    = "0.12.4"
+  namespace  = kubernetes_namespace.monitoring_namespaces.metadata[0].name
 
   values = [
     templatefile("${path.module}/charts/alloy/values.yaml", {})
