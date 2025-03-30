@@ -31,33 +31,17 @@ alloy:
         }
         rule {
           source_labels = ["__meta_kubernetes_pod_label_app"]
-          target_label  = "service_name"
+          target_label  = "app_name"
         }
       }
 
       discovery.relabel "hackathon_microservices" {
         targets = discovery.kubernetes.endpoints.targets
-        
         rule {
           source_labels = ["__meta_kubernetes_service_name"]
           regex = "fiap-hackathon-payment-api-service"
           target_label = "__metrics_path__"
           replacement = "/payment/actuator/prometheus"
-        }
-      }
-
-      loki.source.kubernetes "pods" {
-        targets    = discovery.relabel.pod_logs.output
-        forward_to = [loki.process.add_labels.receiver]
-      }
-
-      loki.process "add_labels" {
-        forward_to = [loki.write.loki_endpoint.receiver]
-      }
-
-      loki.write "loki_endpoint" {
-        endpoint {
-          url = "http://loki-distributor.monitoring:3100/loki/api/v1/push"
         }
       }
 
@@ -70,12 +54,41 @@ alloy:
         }
         output {
           traces = [otelcol.processor.batch.default.input]
+          logs   = [otelcol.processor.transform.logs.input]
+        }
+      }
+
+      otelcol.processor.transform "logs" {
+        log_statements {
+          context = "resource"
+          statements = [
+            "set(resource.attributes[\"service_name\"], resource.attributes[\"service.name\"])",
+          ]
+        }
+        output {
+          logs = [otelcol.processor.batch.logs.input]
         }
       }
 
       otelcol.processor.batch "default" {
         output {
           traces = [otelcol.exporter.otlp.tempo.input]
+        }
+      }
+
+      otelcol.processor.batch "logs" {
+        output {
+          logs = [otelcol.exporter.loki.default.input]
+        }
+      }
+
+      otelcol.exporter.loki "default" {
+        forward_to = [loki.write.loki_endpoint.receiver]
+      }
+
+      loki.write "loki_endpoint" {
+        endpoint {
+          url = "http://loki-distributor.monitoring:3100/loki/api/v1/push"
         }
       }
 

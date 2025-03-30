@@ -9,7 +9,7 @@ resource "helm_release" "alloy" {
     templatefile("${path.module}/charts/alloy/values.yaml", {})
   ]
 
-  timeout = 120
+  timeout = 80
 
   depends_on = [
     helm_release.loki,

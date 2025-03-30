@@ -14,13 +14,13 @@ datasources:
         uid: loki
         jsonData:
           derivedFields:
-            - name: TraceID
-              url: "$${__value.raw}"
-              matcherRegex: "traceID=(\\w+)"
-              datasourceUid: tempo
+          - name: TraceID
+            url: $$${__value.raw}
+            matcherRegex: '"traceid":"([^"]+)"'
+            datasourceUid: tempo
 
-            - name: Pod Logs
-              url: "/explore?left=%7B%22datasource%22:%22Loki%22,%22queries%22:%5B%7B%22expr%22:%22{pod_name=%5C%22$${__field.pod_name}%5C%22}%22%7D%5D%7D"
+          - name: Pod Logs
+            url: "/explore?left=%7B%22datasource%22:%22Loki%22,%22queries%22:%5B%7B%22expr%22:%22{pod_name=%5C%22$$${__field.pod_name}%5C%22}%22%7D%5D%7D"
 
       - name: Prometheus
         type: prometheus
@@ -34,9 +34,38 @@ datasources:
         access: proxy
         uid: tempo
         jsonData:
-          httpMethod: GET
+          tracesToLogsV2:
+            datasourceUid: 'loki'
+            spanStartTimeShift: '-1h'
+            spanEndTimeShift: '1h'
+            tags: ['job', 'instance', 'pod', 'namespace']
+            filterByTraceID: false
+            filterBySpanID: false
+            customQuery: true
+            query: '{$$${__tags}} |~ "$$${__span.traceid}"'
+          # tracesToMetrics:
+          #   datasourceUid: 'prometheus'
+          #   spanStartTimeShift: '-1h'
+          #   spanEndTimeShift: '1h'
+          #   tags: [{ key: 'service.name', value: 'service' }, { key: 'job' }]
+          #   queries:
+          #     - name: 'Sample query'
+          #       query: 'sum(rate(traces_spanmetrics_latency_bucket{$$$__tags}[5m]))'
           serviceMap:
-            datasourceUid: prometheus
+            datasourceUid: 'prometheus'
+          nodeGraph:
+            enabled: true
+          search:
+            hide: false
+          traceQuery:
+            timeShiftEnabled: true
+            spanStartTimeShift: '-1h'
+            spanEndTimeShift: '1h'
+          spanBar:
+            type: 'Tag'
+            tag: 'http.path'
+          streamingEnabled:
+            search: true
       
       - name: CloudWatch
         type: cloudwatch
