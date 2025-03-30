@@ -8,12 +8,6 @@ resource "aws_s3_bucket" "loki_chunk" {
   force_destroy = true
 }
 
-resource "aws_s3_bucket" "loki_ruler" {
-  bucket = "loki-ruler-${random_id.bucket_suffix.hex}"
-
-  force_destroy = true
-}
-
 resource "aws_s3_bucket" "tempo" {
   bucket = "tempo-storage-${random_id.bucket_suffix.hex}"
 

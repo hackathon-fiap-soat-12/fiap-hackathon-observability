@@ -15,8 +15,8 @@ resource "helm_release" "tempo" {
   timeout = 180
 
   depends_on = [
-    kubernetes_namespace.monitoring_namespaces,
+    aws_s3_bucket.tempo,
     kubernetes_secret.aws_credentials,
-    aws_s3_bucket.tempo
+    kubernetes_namespace.monitoring_namespaces,
   ]
 }

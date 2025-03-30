@@ -1,9 +1,3 @@
-auth.anonymous:
-  enabled: true
-  org_name: Main Org.
-  org_role: Viewer
-  hide_version: true
-
 adminPassword: "hackathon"
 
 envFromSecrets:
@@ -21,12 +15,12 @@ datasources:
         jsonData:
           derivedFields:
             - name: TraceID
-              url: "${__value.raw}"
+              url: "$${__value.raw}"
               matcherRegex: "traceID=(\\w+)"
               datasourceUid: tempo
 
             - name: Pod Logs
-              url: "/explore?left=%7B%22datasource%22:%22Loki%22,%22queries%22:%5B%7B%22expr%22:%22{pod_name=%5C%22${__field.pod_name}%5C%22}%22%7D%5D%7D"
+              url: "/explore?left=%7B%22datasource%22:%22Loki%22,%22queries%22:%5B%7B%22expr%22:%22{pod_name=%5C%22$${__field.pod_name}%5C%22}%22%7D%5D%7D"
 
       - name: Prometheus
         type: prometheus
@@ -42,7 +36,7 @@ datasources:
         jsonData:
           httpMethod: GET
           serviceMap:
-            datasourceUid: prometheus # Integração com Prometheus para Service Graphs
+            datasourceUid: prometheus
       
       - name: CloudWatch
         type: cloudwatch
@@ -59,7 +53,6 @@ grafana.ini:
       org_role: "Viewer"
     disable_login_form: false
 
-  # Your existing config
   server:
     root_url: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
     serve_from_sub_path: true
@@ -70,3 +63,8 @@ grafana.ini:
 
 ingress:
   enabled: true
+  ingressClassName: "nginx"
+  path: "/grafana"
+  pathType: "Prefix"
+  hosts:
+    - ${ALB_DNS_NAME}
