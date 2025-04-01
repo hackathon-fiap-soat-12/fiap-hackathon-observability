@@ -3,6 +3,7 @@ resource "helm_release" "tempo" {
   chart      = "tempo"
   repository = "https://grafana.github.io/helm-charts"
   version    = "1.6.1"
+  # version    = "1.19.0"
   namespace  = kubernetes_namespace.monitoring_namespaces.metadata[0].name
 
   values = [
@@ -16,6 +17,7 @@ resource "helm_release" "tempo" {
 
   depends_on = [
     aws_s3_bucket.tempo,
+    helm_release.prometheus,
     kubernetes_secret.aws_credentials,
     kubernetes_namespace.monitoring_namespaces,
   ]
