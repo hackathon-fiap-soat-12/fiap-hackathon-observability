@@ -1,46 +1,132 @@
 alloy:
-  config: |
-    prometheus.scrape "springboot_scrape" {
-      targets = ["fiap-hackathon-otel-test-api-service.otel-test.svc.cluster.local:8080/otel_test/actuator/prometheus"]
-      forward_to = [prometheus.remote_write.default.receiver]
-    }
-
-    prometheus.remote_write "default" {
-      endpoint {
-        url = "http://prometheus-server.monitoring.svc.cluster.local:4318/api/v1/write"
-      }
-    }
-
-    loki.source.podlogs "springboot_logs" {
-      namespace = "otel-test"
-      selector {
-        matchLabels = {
-          app = "fiap-hackathon-otel-test-api"
-        }
-      }
-      forward_to = [loki.write.loki.receiver]
-    }
-
-    loki.write "loki" {
-      endpoint = "http://loki-gateway.monitoring.svc.cluster.local:3100/loki/api/v1/push"
-    }
-
-    otelcol.receiver.otlp "default" {
-      grpc { port = 4317 }
-      http { port = 4318 }
-      output { traces = [otelcol.exporter.tempo.default.input] }
-    }
-
-    otelcol.exporter.tempo "default" {
-      endpoint = "http://tempo.monitoring.svc.cluster.local:4318/v1/traces"
-    }
-
   extraPorts:
-    - name: "trace-grpc"
+    - name: "otelgrpc"
       port: 4317
       targetPort: 4317
       protocol: "TCP"
-    - name: "trace-http"
+    - name: "otelhttp"
       port: 4318
       targetPort: 4318
       protocol: "TCP"
+
+  configMap:
+    content: |-
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      discovery.kubernetes "endpoints" {
+        role = "endpoints"
+      }
+
+      discovery.relabel "pod_logs" {
+        targets = discovery.kubernetes.pods.targets
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod_name"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app"]
+          target_label  = "app_name"
+        }
+      }
+
+      discovery.relabel "ingress_nginx" {
+        targets = discovery.kubernetes.endpoints.targets
+        rule {
+          source_labels = ["__meta_kubernetes_service_name"]
+          regex = "ingress-nginx-controller-metrics"
+          target_label = "__metrics_path__"
+          replacement = "/metrics"
+        }
+      }
+
+      discovery.relabel "hackathon_microservices" {
+        targets = discovery.kubernetes.endpoints.targets
+        rule {
+          source_labels = ["__meta_kubernetes_service_name"]
+          regex = "fiap-hackathon-payment-api-service"
+          target_label = "__metrics_path__"
+          replacement = "/payment/actuator/prometheus"
+        }
+      }
+
+      otelcol.receiver.otlp "default" {
+        http {
+          endpoint = "0.0.0.0:4318"
+        }
+        grpc {
+          endpoint = "0.0.0.0:4317"
+        }
+        output {
+          traces = [otelcol.processor.batch.default.input]
+          logs   = [otelcol.processor.transform.logs.input]
+        }
+      }
+
+      otelcol.processor.transform "logs" {
+        log_statements {
+          context = "resource"
+          statements = [
+            "set(resource.attributes[\"service_name\"], resource.attributes[\"service.name\"])",
+          ]
+        }
+        output {
+          logs = [otelcol.processor.batch.logs.input]
+        }
+      }
+
+      otelcol.processor.batch "default" {
+        output {
+          traces = [otelcol.exporter.otlp.tempo.input]
+        }
+      }
+
+      otelcol.processor.batch "logs" {
+        output {
+          logs = [otelcol.exporter.loki.default.input]
+        }
+      }
+
+      otelcol.exporter.loki "default" {
+        forward_to = [loki.write.loki_endpoint.receiver]
+      }
+
+      loki.write "loki_endpoint" {
+        endpoint {
+          url = "http://loki-distributor.monitoring:3100/loki/api/v1/push"
+        }
+      }
+
+      otelcol.exporter.otlp "tempo" {
+        client {
+          endpoint = "tempo.monitoring.svc.cluster.local:4317"
+          tls {
+            insecure = true
+          }
+        }
+      }
+
+      prometheus.scrape "nginx_ingress" {
+        targets = discovery.relabel.ingress_nginx.output
+        forward_to = [prometheus.remote_write.prometheus.receiver]
+        scrape_interval = "15s"
+        job_name = "ingress-nginx"
+      }
+
+      prometheus.scrape "hackathon_microservices" {
+        targets = discovery.relabel.hackathon_microservices.output
+        forward_to = [prometheus.remote_write.prometheus.receiver]
+        scrape_interval = "15s"
+        job_name = "hackathon-microservices"
+      }
+
+      prometheus.remote_write "prometheus" {
+        endpoint {
+          url = "http://prometheus-server.monitoring.svc.cluster.local:9090/api/v1/write"
+        }
+      }

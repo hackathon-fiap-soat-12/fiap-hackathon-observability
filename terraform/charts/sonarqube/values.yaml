@@ -6,9 +6,9 @@ postgresql:
 
 jdbcOverwrite:
   enabled: true
-  jdbcUrl: ${rds_endpoint}
-  jdbcUsername: ${rds_username}
-  jdbcPassword: ${rds_password}
+  jdbcUrl: ${RDS_ENDPOINT}
+  jdbcUsername: ${RDS_USERNAME}
+  jdbcPassword: ${RDS_PASSWORD}
 
 service:
   type: ClusterIP
@@ -16,7 +16,17 @@ service:
   internalPort: 9000
 
 ingress:
-  enabled: false
+  enabled: true
+  ingressClassName: nginx
+  hosts:
+    - name: ${ALB_DNS_NAME}
+      path: /sonarqube
+      pathType: Prefix
+      serviceName: sonarqube-sonarqube
+      servicePort: 9000
+  annotations:
+    nginx.ingress.kubernetes.io/x-forwarded-port: "true"
+    nginx.ingress.kubernetes.io/x-forwarded-host: "true"
 
 sonarProperties:
   sonar.web.context: "/sonarqube"

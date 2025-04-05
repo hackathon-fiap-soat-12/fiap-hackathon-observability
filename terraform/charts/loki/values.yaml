@@ -3,6 +3,12 @@ global:
     - secretRef:
         name: aws-credentials
 
+test:
+  enabled: false
+
+lokiCanary:
+  enabled: false
+
 loki:
   auth_enabled: false
   
@@ -31,21 +37,11 @@ loki:
     chunk_encoding: snappy
 
   pattern_ingester:
-    enabled: true
+    enabled: false
 
   compactor:
     retention_enabled: true
     delete_request_store: s3
-
-  ruler:
-    enable_api: true
-    storage:
-      type: s3
-      s3:
-        region: ${AWS_REGION}
-        bucketnames: ${LOKI_RULER_S3_BUCKET}
-        s3forcepathstyle: false
-      # alertmanager_url: http://prom:9093
 
   querier:
     max_concurrent: 4
@@ -54,7 +50,6 @@ loki:
     type: s3
     bucketNames:
       chunks: ${LOKI_CHUNK_S3_BUCKET}
-      ruler: ${LOKI_RULER_S3_BUCKET}
       # admin: "<Insert s3 bucket name>" # Your actual S3 bucket name (loki-aws-dev-admin) - GEL customers only
     s3:
       region: ${AWS_REGION}
@@ -94,6 +89,7 @@ queryFrontend:
   maxUnavailable: 1
 
 queryScheduler:
+  # enabled: false
   replicas: 2
 
 distributor:
@@ -103,12 +99,14 @@ compactor:
   replicas: 1
 
 indexGateway:
+  # enabled: false
   replicas: 2
   maxUnavailable: 1
 
 ruler:
-  replicas: 1
-  maxUnavailable: 1
+  enabled: false
+  # replicas: 1
+  # maxUnavailable: 1
 
 minio:
   enabled: false
@@ -134,6 +132,7 @@ singleBinary:
   replicas: 0
 
 gateway:
+  # enabled: false
   service:
     type: ClusterIP
     port: 3100

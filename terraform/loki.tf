@@ -7,7 +7,6 @@ resource "helm_release" "loki" {
 
   values = [
     templatefile("${path.module}/charts/loki/values.yaml", {
-      LOKI_RULER_S3_BUCKET             = aws_s3_bucket.loki_ruler.id
       LOKI_CHUNK_S3_BUCKET             = aws_s3_bucket.loki_chunk.id
       LOKI_MEMCACHED_CHUNK_CACHE_URL   = local.loki_memcaced_node_endpoints[0]
       LOKI_MEMCACHED_RESULTS_CACHE_URL = local.loki_memcaced_node_endpoints[1]
@@ -18,12 +17,11 @@ resource "helm_release" "loki" {
     })
   ]
 
-  timeout = 120
+  timeout = 180
 
   depends_on = [
-    kubernetes_namespace.monitoring_namespaces,
-    kubernetes_secret.aws_credentials,
-    aws_s3_bucket.loki_ruler,
     aws_s3_bucket.loki_chunk,
+    kubernetes_secret.aws_credentials,
+    kubernetes_namespace.monitoring_namespaces
   ]
 }

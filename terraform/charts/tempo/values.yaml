@@ -10,6 +10,7 @@ tempo:
 
   metricsGenerator:
     enabled: true
+    remoteWriteUrl: "http://prometheus-server.monitoring.svc.cluster.local:9090/api/v1/write"
 
   extraEnvFrom:
     - secretRef:
