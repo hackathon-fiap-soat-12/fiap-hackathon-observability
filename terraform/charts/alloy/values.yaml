@@ -35,6 +35,16 @@ alloy:
         }
       }
 
+      discovery.relabel "ingress_nginx" {
+        targets = discovery.kubernetes.endpoints.targets
+        rule {
+          source_labels = ["__meta_kubernetes_service_name"]
+          regex = "ingress-nginx-controller-metrics"
+          target_label = "__metrics_path__"
+          replacement = "/metrics"
+        }
+      }
+
       discovery.relabel "hackathon_microservices" {
         targets = discovery.kubernetes.endpoints.targets
         rule {
@@ -99,6 +109,13 @@ alloy:
             insecure = true
           }
         }
+      }
+
+      prometheus.scrape "nginx_ingress" {
+        targets = discovery.relabel.ingress_nginx.output
+        forward_to = [prometheus.remote_write.prometheus.receiver]
+        scrape_interval = "15s"
+        job_name = "ingress-nginx"
       }
 
       prometheus.scrape "hackathon_microservices" {
