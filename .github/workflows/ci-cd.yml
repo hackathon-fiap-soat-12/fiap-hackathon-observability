@@ -19,6 +19,11 @@ jobs:
       id-token: write
       contents: read
 
+    env:
+      TF_VAR_aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      TF_VAR_aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      TF_VAR_aws_session_token: ${{ secrets.AWS_SESSION_TOKEN }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
