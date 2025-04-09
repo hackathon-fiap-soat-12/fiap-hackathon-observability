@@ -3,7 +3,6 @@ resource "helm_release" "tempo" {
   chart      = "tempo"
   repository = "https://grafana.github.io/helm-charts"
   version    = "1.6.1"
-  # version    = "1.19.0"
   namespace  = kubernetes_namespace.monitoring_namespaces.metadata[0].name
 
   values = [
